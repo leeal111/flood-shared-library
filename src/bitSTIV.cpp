@@ -7,35 +7,14 @@
 #include <string>
 #include <fstream>
 #include <iostream>
+#include "print.hpp"
 
-void print_data(const cv::Mat &img)
-{
-    std::ofstream outputFile("matrix.txt");
-    // 将矩阵数据逐行写入文件
-    if (outputFile.is_open())
-    {
-        for (int i = 0; i < img.rows; i++)
-        {
-            for (int j = 0; j < img.cols; j++)
-            {
-                outputFile << img.at<double>(i, j) << " ";
-            }
-            outputFile << std::endl;
-        }
-        outputFile.close();
-        std::cout << "Matrix saved to matrix.txt" << std::endl;
-    }
-    else
-    {
-        std::cout << "Failed to open file" << std::endl;
-    }
-}
 double calculateScore(const std::vector<double> &sumList, int range_len = 5)
 {
     int maxIndex = std::distance(sumList.begin(), std::max_element(sumList.begin(), sumList.end()));
     double total = sumList[maxIndex];
 
-    for (int i = 1; i < range_len; i++)
+    for (int i = 1; i <= range_len; i++)
     {
         int index = maxIndex - i >= 0 ? maxIndex - i : 0;
         total += sumList[index];
@@ -120,7 +99,6 @@ cv::Mat absFFTshift(cv::Mat image)
     cv::split(complexImage, planes);
     cv::Mat magnitude;
     cv::magnitude(planes[0], planes[1], magnitude);
-    print_data(magnitude);
     // 以下的操作是移动图像  (零频移到中心)
     int cx = magnitude.cols / 2;
     int cy = magnitude.rows / 2;
@@ -238,16 +216,11 @@ double sti2angle_IFFT(cv::Mat img)
     cv::Mat img_fft = absFFTshift(img_clr);
     lowFreqFilter(img_fft);
     cv::Mat img_fft_clr = verticalDelete(img_fft);
-    print_data(img_fft_clr);
     cv::Mat img_fft_pow = imgPow(img_fft_clr, 2);
-    print_data(img_fft_pow);
     cv::Mat img_fft_crop = imgCrop(img_fft_pow);
-    print_data(img_fft_crop);
     cv::Mat img_fe = absFFTshift(img_fft_crop);
-    
     lowFreqFilter(img_fe);
     cv::Mat img_fe_clr = verticalDelete(img_fe);
-    print_data(img_fe_clr);
     cv::Mat img_fe_ = img_fe_clr;
 
     double res = 45;
@@ -333,7 +306,7 @@ double sti2score(cv::Mat img)
     cv::Mat img_fe = absFFTshift(img_fft_crop);
     lowFreqFilter(img_fe);
     cv::Mat img_fe_clr = verticalDelete(img_fe);
-    cv::Mat img_fe_ = img_fe;
+    cv::Mat img_fe_ = img_fe_clr;
 
     double res = 45;
     double theta = 45;

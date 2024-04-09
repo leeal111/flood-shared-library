@@ -6,5 +6,5 @@ void ComputeAngle()
 }
 void ComputeScore()
 {
-    printf("%lf\n", BIT_sti2score_path(0, "../../tests/imgs/test.jpg"));
+    printf("%lf\n", BIT_sti2score_path(1, "../../tests/imgs/test.jpg"));
 }
