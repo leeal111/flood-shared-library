@@ -8,6 +8,23 @@
 #include <fstream>
 #include <iostream>
 
+double calculateScore(const std::vector<double> &sumList, int range_len = 5)
+{
+    int maxIndex = std::distance(sumList.begin(), std::max_element(sumList.begin(), sumList.end()));
+    double total = sumList[maxIndex];
+
+    for (int i = 1; i < range_len; i++)
+    {
+        int index = maxIndex - i >= 0 ? maxIndex - i : 0;
+        total += sumList[index];
+
+        index = maxIndex + i < sumList.size() ? maxIndex + i : sumList.size() - 1;
+        total += sumList[index];
+    }
+
+    return total / std::accumulate(sumList.begin(), sumList.end(), 0.0);
+}
+
 cv::Mat std_filter(cv::Mat sti)
 {
     cv::Mat normalizedImage = sti.clone();
@@ -262,6 +279,7 @@ double sti2angle_IFFT(cv::Mat img)
     }
     return result;
 }
+
 double sti2angle(cv::Mat img)
 {
     if (img.channels() > 1)
@@ -270,6 +288,41 @@ double sti2angle(cv::Mat img)
     }
     img.convertTo(img, CV_32FC1);
     return sti2angle_IFFT(img);
+}
+
+double sti2score(cv::Mat img)
+{
+    if (img.channels() > 1)
+    {
+        cv::cvtColor(img, img, cv::COLOR_BGR2GRAY); // 将图像转换为灰度图像
+    }
+    img.convertTo(img, CV_32FC1);
+
+    cv::Mat img_std = std_filter(img);
+    cv::Mat img_clr = partSobel(img_std);
+    cv::Mat img_fft = absFFTshift(img_clr);
+    lowFreqFilter(img_fft);
+    cv::Mat img_fft_clr = verticalDelete(img_fft);
+    cv::Mat img_fft_pow = imgPow(img_fft_clr, 2);
+    cv::Mat img_fft_crop = imgCrop(img_fft_pow);
+    cv::Mat img_fe = absFFTshift(img_fft_crop);
+    lowFreqFilter(img_fe);
+    cv::Mat img_fe_clr = verticalDelete(img_fe);
+    cv::Mat img_fe_ = img_fe_clr;
+
+    float res = 45;
+    float theta = 45;
+    float precision = 1;
+    int rangeV = 1;
+    float rangedivR = 2.5;
+    int zeroNum = 20;
+    cv::Mat polar = xycrd2polarcrd(img_fe_, res, theta, precision, rangeV, rangedivR, zeroNum);
+    cv::Mat sum_list;
+    cv::reduce(polar, sum_list, 1, cv::REDUCE_SUM);
+    std::vector<double> sum_list_vec;
+    sum_list.copyTo(sum_list_vec);
+
+    return calculateScore(sum_list_vec);
 }
 
 #ifdef __cplusplus
@@ -282,6 +335,13 @@ extern "C"
         if (ifR2L == 1)
             cv::flip(image, image, 1);
         return sti2angle(image);
+    }
+    double BIT_sti2score_path(int ifR2L, const char *path)
+    {
+        cv::Mat image = cv::imread(std::string(path));
+        if (ifR2L == 1)
+            cv::flip(image, image, 1);
+        return sti2score(image);
     }
 #ifdef __cplusplus
 }
