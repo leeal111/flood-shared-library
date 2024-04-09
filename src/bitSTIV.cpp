@@ -8,112 +8,6 @@
 #include <fstream>
 #include <iostream>
 
-cv::Mat normalizeImg(const cv::Mat &data)
-{
-    cv::Mat normalizedData;
-
-    double minValue, maxValue;
-    cv::minMaxLoc(data, &minValue, &maxValue);
-
-    if (maxValue != minValue)
-    {
-        cv::normalize(data, normalizedData, 0, 255, cv::NORM_MINMAX);
-    }
-    else
-    {
-        double value;
-        if (maxValue > 255)
-        {
-            value = 255;
-        }
-        else if (maxValue < 0)
-        {
-            value = 0;
-        }
-        else
-        {
-            value = maxValue;
-        }
-        normalizedData = cv::Mat(data.size(), data.type(), cv::Scalar(value));
-    }
-
-    cv::Mat img;
-    normalizedData.convertTo(img, CV_8U);
-
-    return img;
-}
-
-void save(cv::Mat sti)
-{
-    sti = normalizeImg(sti);
-    cv::imwrite("output.jpg", sti);
-}
-
-void printMatType(const cv::Mat &matrix)
-{
-    int type = matrix.type();
-
-    if (type == CV_8UC1)
-    {
-        std::cout << "8位无符号单通道图像" << std::endl;
-    }
-    else if (type == CV_8UC3)
-    {
-        std::cout << "8位无符号三通道图像" << std::endl;
-    }
-    else if (type == CV_8SC1)
-    {
-        std::cout << "8位有符号单通道图像" << std::endl;
-    }
-    else if (type == CV_32FC1)
-    {
-        std::cout << "32位浮点单通道图像" << std::endl;
-    }
-    else if (type == CV_32SC1)
-    {
-        std::cout << "32位有符号单通道图像" << std::endl;
-    }
-    else
-    {
-        std::cout << "未知类型" << std::endl;
-    }
-}
-
-void print(const cv::Mat &matrix)
-{
-    printMatType(matrix);
-
-    save(matrix);
-
-    // 数据保存
-    const std::string &filename = "output.txt";
-    std::ofstream outputFile(filename); // 创建一个输出流
-    if (!outputFile.is_open())
-    {
-        std::cout << "无法打开文件：" << filename << std::endl;
-        return;
-    }
-    int elemSize = matrix.elemSize();
-    int elemType = matrix.type();
-
-    for (int i = 0; i < matrix.rows; i++)
-    {
-        for (int j = 0; j < matrix.cols; j++)
-        {
-            if (elemType == CV_8UC1)
-            {
-                outputFile << static_cast<int>(matrix.at<uchar>(i, j)) << " ";
-            }
-            else if (elemType == CV_8SC1)
-            {
-                outputFile << static_cast<int>(matrix.at<char>(i, j)) << " ";
-            }
-            // 其他单字节元素类型（如CV_8UC3、CV_8SC3等）可以根据需要进行类似的处理
-        }
-        outputFile << std::endl; // 每行结束后换行
-    }
-}
-
 cv::Mat std_filter(cv::Mat sti)
 {
     cv::Mat normalizedImage = sti.clone();
@@ -302,27 +196,16 @@ cv::Mat imgCrop(cv::Mat image, int rangedivR = 10)
 
 double sti2angle_IFFT(cv::Mat img)
 {
-    ::print(img);
     cv::Mat img_std = std_filter(img);
-    // ::print(img_std);
     cv::Mat img_clr = partSobel(img_std);
-    // ::print(img_clr);
     cv::Mat img_fft = absFFTshift(img_clr);
-    // ::print(img_fft);
     lowFreqFilter(img_fft);
-    // ::print(img_fft);
     cv::Mat img_fft_clr = verticalDelete(img_fft);
-    // ::print(img_fft_clr);
     cv::Mat img_fft_pow = imgPow(img_fft_clr, 2);
-    // save(img_fft_pow);
     cv::Mat img_fft_crop = imgCrop(img_fft_pow);
-    // save(img_fft_crop);
     cv::Mat img_fe = absFFTshift(img_fft_crop);
-    // save(img_fe);
     lowFreqFilter(img_fe);
-    // save(img_fe);
     cv::Mat img_fe_clr = verticalDelete(img_fe);
-    // save(img_fe_clr);
     cv::Mat img_fe_ = img_fe_clr;
 
     float res = 45;
@@ -331,18 +214,11 @@ double sti2angle_IFFT(cv::Mat img)
     int rangeV = 1;
     float rangedivR = 2.5;
     int zeroNum = 20;
-    // float res = (res - theta) + (np.argmax(sum_list_2) * precision);
     cv::Mat polar = xycrd2polarcrd(img_fe_, res, theta, precision, rangeV, rangedivR, zeroNum);
-    int rows = polar.rows;
-    int cols = polar.cols;
-
-    // std::cout << "矩阵的行数：" << rows << std::endl;
-    // std::cout << "矩阵的列数：" << cols << std::endl;
     cv::Mat sum_list;
     cv::reduce(polar, sum_list, 1, cv::REDUCE_SUM);
     std::vector<double> sum_list_vec;
     sum_list.copyTo(sum_list_vec);
-
     int maxIndex = 0; // 假设最大元素的序号为0
     for (int i = 1; i < sum_list_vec.size(); i++)
     {
@@ -367,10 +243,8 @@ double sti2angle_IFFT(cv::Mat img)
     cv::Mat polar_2 = xycrd2polarcrd(img_fe_, res, theta, precision, rangeV, rangedivR, zeroNum);
     cv::Mat sum_list_2;
     cv::reduce(polar_2, sum_list_2, 1, cv::REDUCE_SUM);
-
     std::vector<double> sum_list_2_vec;
     sum_list_2.copyTo(sum_list_2_vec);
-
     maxIndex = 0; // 假设最大元素的序号为0
     for (int i = 1; i < sum_list_2_vec.size(); i++)
     {
@@ -386,7 +260,6 @@ double sti2angle_IFFT(cv::Mat img)
     {
         result = res - 90;
     }
-
     return result;
 }
 double sti2angle(cv::Mat img)
