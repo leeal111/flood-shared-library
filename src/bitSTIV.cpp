@@ -8,6 +8,28 @@
 #include <fstream>
 #include <iostream>
 
+void print_data(const cv::Mat &img)
+{
+    std::ofstream outputFile("matrix.txt");
+    // 将矩阵数据逐行写入文件
+    if (outputFile.is_open())
+    {
+        for (int i = 0; i < img.rows; i++)
+        {
+            for (int j = 0; j < img.cols; j++)
+            {
+                outputFile << img.at<double>(i, j) << " ";
+            }
+            outputFile << std::endl;
+        }
+        outputFile.close();
+        std::cout << "Matrix saved to matrix.txt" << std::endl;
+    }
+    else
+    {
+        std::cout << "Failed to open file" << std::endl;
+    }
+}
 double calculateScore(const std::vector<double> &sumList, int range_len = 5)
 {
     int maxIndex = std::distance(sumList.begin(), std::max_element(sumList.begin(), sumList.end()));
@@ -48,27 +70,27 @@ cv::Mat std_filter(cv::Mat sti)
     return normalizedImage;
 }
 
-cv::Mat xycrd2polarcrd(cv::Mat img, float res = 45, float theta = 45, float precision = 1, int rangeV = 0, float rangedivR = 2, int zeroNum = 0)
+cv::Mat xycrd2polarcrd(cv::Mat img, double res = 45, double theta = 45, double precision = 1, int rangeV = 0, double rangedivR = 2, int zeroNum = 0)
 {
     int maxr = std::round(std::min(img.rows, img.cols) / rangedivR);
     int maxa = std::round(2 * theta / precision);
     int h = img.rows / 2;
     int w = img.cols / 2;
 
-    cv::Mat dst = cv::Mat::zeros(maxa, maxr, CV_32FC1);
+    cv::Mat dst = cv::Mat::zeros(maxa, maxr, CV_64FC1);
     for (int a = 0; a < maxa; a++)
     {
-        float angle = (res - theta) + (a * precision);
+        double angle = (res - theta) + (a * precision);
         for (int r = 0; r < maxr; r++)
         {
             int h0 = h + static_cast<int>(r * std::sin(angle * CV_PI / 180));
             int w0 = w + static_cast<int>(r * std::cos(angle * CV_PI / 180));
-            dst.at<float>(a, r) += img.at<float>(h0, w0);
+            dst.at<double>(a, r) += img.at<double>(h0, w0);
             for (int i = 0; i < rangeV; i++)
             {
-                float dangle = (i + 1) * precision;
-                dst.at<float>(a, r) += img.at<float>(h + static_cast<int>(r * std::sin((angle - dangle) * CV_PI / 180)), w + static_cast<int>(r * std::cos((angle - dangle) * CV_PI / 180)));
-                dst.at<float>(a, r) += img.at<float>(h + static_cast<int>(r * std::sin((angle + dangle) * CV_PI / 180)), w + static_cast<int>(r * std::cos((angle + dangle) * CV_PI / 180)));
+                double dangle = (i + 1) * precision;
+                dst.at<double>(a, r) += img.at<double>(h + static_cast<int>(r * std::sin((angle - dangle) * CV_PI / 180)), w + static_cast<int>(r * std::cos((angle - dangle) * CV_PI / 180)));
+                dst.at<double>(a, r) += img.at<double>(h + static_cast<int>(r * std::sin((angle + dangle) * CV_PI / 180)), w + static_cast<int>(r * std::cos((angle + dangle) * CV_PI / 180)));
             }
         }
     }
@@ -98,26 +120,26 @@ cv::Mat absFFTshift(cv::Mat image)
     cv::split(complexImage, planes);
     cv::Mat magnitude;
     cv::magnitude(planes[0], planes[1], magnitude);
+    print_data(magnitude);
+    // 以下的操作是移动图像  (零频移到中心)
+    int cx = magnitude.cols / 2;
+    int cy = magnitude.rows / 2;
 
-    cv::Mat result = magnitude;
+    cv::Mat part1_r(magnitude, cv::Rect(0, 0, cx, cy)); // 元素坐标表示为(cx, cy)
+    cv::Mat part2_r(magnitude, cv::Rect(cx, 0, cx, cy));
+    cv::Mat part3_r(magnitude, cv::Rect(0, cy, cx, cy));
+    cv::Mat part4_r(magnitude, cv::Rect(cx, cy, cx, cy));
 
-    int cx = result.cols / 2;
-    int cy = result.rows / 2;
+    cv::Mat temp;
+    part1_r.copyTo(temp); // 左上与右下交换位置(实部)
+    part4_r.copyTo(part1_r);
+    temp.copyTo(part4_r);
 
-    cv::Mat q0(result, cv::Rect(0, 0, cx, cy));
-    cv::Mat q1(result, cv::Rect(cx, 0, cx, cy));
-    cv::Mat q2(result, cv::Rect(0, cy, cx, cy));
-    cv::Mat q3(result, cv::Rect(cx, cy, cx, cy));
+    part2_r.copyTo(temp); // 右上与左下交换位置(实部)
+    part3_r.copyTo(part2_r);
+    temp.copyTo(part3_r);
 
-    cv::Mat tmp;
-    q0.copyTo(tmp);
-    q3.copyTo(q0);
-    tmp.copyTo(q3);
-
-    q1.copyTo(tmp);
-    q2.copyTo(q1);
-    tmp.copyTo(q2);
-    return result;
+    return magnitude;
 }
 
 cv::Mat verticalDelete(cv::Mat image)
@@ -127,17 +149,15 @@ cv::Mat verticalDelete(cv::Mat image)
     if (image.cols % 2 == 0)
     {
         image_l = image(cv::Rect(1, 0, image.cols / 2 - 1, image.rows));
+        image_r = image(cv::Rect(image.cols / 2 + 1, 0, image.cols / 2 - 1, image.rows));
     }
     else
     {
         image_l = image(cv::Rect(0, 0, image.cols / 2, image.rows));
+        image_r = image(cv::Rect(image.cols / 2 + 1, 0, image.cols / 2, image.rows));
     }
-
     image_v = image(cv::Rect(image.cols / 2, 0, 1, image.rows));
-
-    image_r = image(cv::Rect(image.cols / 2 + 1, 0, image.cols - (image.cols / 2 + 1), image.rows));
     cv::flip(image_r, image_r_flip, 1);
-
     cv::Mat min_value = cv::min(image_l, image_r_flip);
     cv::Mat image_l_res = image_l - min_value;
     cv::Mat image_r_res;
@@ -171,14 +191,14 @@ cv::Mat imgPow(cv::Mat image, double powNum = -1)
 cv::Mat partSobel(cv::Mat image)
 {
     cv::Mat img;
-    cv::Sobel(image, img, CV_32FC1, 1, 1, 3);
+    cv::Sobel(image, img, CV_64FC1, 1, 1, 3);
 
     for (int i = 0; i < img.rows; i++)
     {
         for (int j = 0; j < img.cols; j++)
         {
-            if (img.at<float>(i, j) < 0)
-                img.at<float>(i, j) = 0;
+            if (img.at<double>(i, j) < 0)
+                img.at<double>(i, j) = 0;
         }
     }
     return img;
@@ -218,18 +238,23 @@ double sti2angle_IFFT(cv::Mat img)
     cv::Mat img_fft = absFFTshift(img_clr);
     lowFreqFilter(img_fft);
     cv::Mat img_fft_clr = verticalDelete(img_fft);
+    print_data(img_fft_clr);
     cv::Mat img_fft_pow = imgPow(img_fft_clr, 2);
+    print_data(img_fft_pow);
     cv::Mat img_fft_crop = imgCrop(img_fft_pow);
+    print_data(img_fft_crop);
     cv::Mat img_fe = absFFTshift(img_fft_crop);
+    
     lowFreqFilter(img_fe);
     cv::Mat img_fe_clr = verticalDelete(img_fe);
+    print_data(img_fe_clr);
     cv::Mat img_fe_ = img_fe_clr;
 
-    float res = 45;
-    float theta = 45;
-    float precision = 1;
+    double res = 45;
+    double theta = 45;
+    double precision = 1;
     int rangeV = 1;
-    float rangedivR = 2.5;
+    double rangedivR = 2.5;
     int zeroNum = 20;
     cv::Mat polar = xycrd2polarcrd(img_fe_, res, theta, precision, rangeV, rangedivR, zeroNum);
     cv::Mat sum_list;
@@ -286,7 +311,7 @@ double sti2angle(cv::Mat img)
     {
         cv::cvtColor(img, img, cv::COLOR_BGR2GRAY); // 将图像转换为灰度图像
     }
-    img.convertTo(img, CV_32FC1);
+    img.convertTo(img, CV_64FC1);
     return sti2angle_IFFT(img);
 }
 
@@ -296,7 +321,7 @@ double sti2score(cv::Mat img)
     {
         cv::cvtColor(img, img, cv::COLOR_BGR2GRAY); // 将图像转换为灰度图像
     }
-    img.convertTo(img, CV_32FC1);
+    img.convertTo(img, CV_64FC1);
 
     cv::Mat img_std = std_filter(img);
     cv::Mat img_clr = partSobel(img_std);
@@ -308,13 +333,13 @@ double sti2score(cv::Mat img)
     cv::Mat img_fe = absFFTshift(img_fft_crop);
     lowFreqFilter(img_fe);
     cv::Mat img_fe_clr = verticalDelete(img_fe);
-    cv::Mat img_fe_ = img_fe_clr;
+    cv::Mat img_fe_ = img_fe;
 
-    float res = 45;
-    float theta = 45;
-    float precision = 1;
+    double res = 45;
+    double theta = 45;
+    double precision = 1;
     int rangeV = 1;
-    float rangedivR = 2.5;
+    double rangedivR = 2.5;
     int zeroNum = 20;
     cv::Mat polar = xycrd2polarcrd(img_fe_, res, theta, precision, rangeV, rangedivR, zeroNum);
     cv::Mat sum_list;
