@@ -1,7 +1,12 @@
-#include<stdlib.h>
-#include"bitSTIV_test.hpp"
-int main(int argc,char ** argv)
+#include <stdlib.h>
+#include "bitSTIV.h"
+#include <stdio.h>
+int main(int argc, char **argv)
 {
-    ComputeAngle(atoi(argv[1]) , argv[2]);
-    ComputeScore(atoi(argv[1]), argv[2]);
+    int i = atoi(argv[1]);
+    double score;
+    printf("%lf\n", BIT_sti2angle_path(i, argv[2]));
+    printf("%lf\n", BIT_sti2score_path(i, argv[2]));
+    double angle = BIT_sti2angleWithscore_path(i, argv[2], &score);
+    printf("%lf %lf\n", angle, score);
 }

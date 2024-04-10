@@ -208,9 +208,34 @@ cv::Mat imgCrop(cv::Mat image, int rangedivR = 10)
 
     return result;
 }
-
-double sti2angle_IFFT(cv::Mat img)
+void exam_args(int ifR2L, const char *path, double *score)
 {
+    if (ifR2L != 0 && ifR2L != 1)
+    {
+        std::cout << "ifR2L should be 0 or 1!" << std::endl;
+    }
+    if (path == nullptr)
+    {
+        std::cout << "path should not be nullptr!" << std::endl;
+    }
+    if (score == nullptr)
+    {
+        std::cout << "score should not be nullptr!" << std::endl;
+    }
+}
+double sti2angle_IFFT(int ifR2L, const char *path, double *score)
+{
+    exam_args(ifR2L, path, score);
+    cv::Mat img = cv::imread(std::string(path));
+    if (ifR2L)
+        cv::flip(img, img, 1);
+
+    if (img.channels() > 1)
+    {
+        cv::cvtColor(img, img, cv::COLOR_BGR2GRAY); // 将图像转换为灰度图像
+    }
+    img.convertTo(img, CV_64FC1);
+
     cv::Mat img_std = std_filter(img);
     cv::Mat img_clr = partSobel(img_std);
     cv::Mat img_fft = absFFTshift(img_clr);
@@ -234,6 +259,7 @@ double sti2angle_IFFT(cv::Mat img)
     cv::reduce(polar, sum_list, 1, cv::REDUCE_SUM);
     std::vector<double> sum_list_vec;
     sum_list.copyTo(sum_list_vec);
+    *score = calculateScore(sum_list_vec);
     int maxIndex = 0; // 假设最大元素的序号为0
     for (int i = 1; i < sum_list_vec.size(); i++)
     {
@@ -278,68 +304,26 @@ double sti2angle_IFFT(cv::Mat img)
     return result;
 }
 
-double sti2angle(cv::Mat img)
-{
-    if (img.channels() > 1)
-    {
-        cv::cvtColor(img, img, cv::COLOR_BGR2GRAY); // 将图像转换为灰度图像
-    }
-    img.convertTo(img, CV_64FC1);
-    return sti2angle_IFFT(img);
-}
-
-double sti2score(cv::Mat img)
-{
-    if (img.channels() > 1)
-    {
-        cv::cvtColor(img, img, cv::COLOR_BGR2GRAY); // 将图像转换为灰度图像
-    }
-    img.convertTo(img, CV_64FC1);
-
-    cv::Mat img_std = std_filter(img);
-    cv::Mat img_clr = partSobel(img_std);
-    cv::Mat img_fft = absFFTshift(img_clr);
-    lowFreqFilter(img_fft);
-    cv::Mat img_fft_clr = verticalDelete(img_fft);
-    cv::Mat img_fft_pow = imgPow(img_fft_clr, 2);
-    cv::Mat img_fft_crop = imgCrop(img_fft_pow);
-    cv::Mat img_fe = absFFTshift(img_fft_crop);
-    lowFreqFilter(img_fe);
-    cv::Mat img_fe_clr = verticalDelete(img_fe);
-    cv::Mat img_fe_ = img_fe_clr;
-
-    double res = 45;
-    double theta = 45;
-    double precision = 1;
-    int rangeV = 1;
-    double rangedivR = 2.5;
-    int zeroNum = 20;
-    cv::Mat polar = xycrd2polarcrd(img_fe_, res, theta, precision, rangeV, rangedivR, zeroNum);
-    cv::Mat sum_list;
-    cv::reduce(polar, sum_list, 1, cv::REDUCE_SUM);
-    std::vector<double> sum_list_vec;
-    sum_list.copyTo(sum_list_vec);
-
-    return calculateScore(sum_list_vec);
-}
-
 #ifdef __cplusplus
 extern "C"
 {
 #endif
     double BIT_sti2angle_path(int ifR2L, const char *path)
     {
-        cv::Mat image = cv::imread(std::string(path));
-        if (ifR2L == 1)
-            cv::flip(image, image, 1);
-        return sti2angle(image);
+        double score;
+        return sti2angle_IFFT(ifR2L, path, &score);
     }
+
     double BIT_sti2score_path(int ifR2L, const char *path)
     {
-        cv::Mat image = cv::imread(std::string(path));
-        if (ifR2L == 1)
-            cv::flip(image, image, 1);
-        return sti2score(image);
+        double score;
+        sti2angle_IFFT(ifR2L, path, &score);
+        return score;
+    }
+
+    double BIT_sti2angleWithscore_path(int ifR2L, const char *path, double *score)
+    {
+        return sti2angle_IFFT(ifR2L, path, score);
     }
 #ifdef __cplusplus
 }
