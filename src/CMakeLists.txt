@@ -8,6 +8,7 @@ if(CMAKE_SYSTEM_NAME MATCHES "Windows")
   if(DEFINED ENV{OPENCV_ROOT})
     list(APPEND CMAKE_PREFIX_PATH "$ENV{OPENCV_ROOT}")
     find_package(OpenCV REQUIRED)
+    target_compile_definitions(${PROJECT_NAME} PRIVATE DLL_EXPORTS)
     target_link_libraries(${PROJECT_NAME} PRIVATE ${OpenCV_LIBS})
   else()
     message(
