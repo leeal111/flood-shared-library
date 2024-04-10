@@ -1,3 +1,5 @@
-add_executable(unit_tests unit_tests.cpp bitSTIV_test.cpp)
-target_link_libraries(unit_tests ${PROJECT_NAME})
-add_test(NAME unit_tests COMMAND unit_tests)
+add_executable(unit_tests unit_tests.cpp)
+target_link_libraries(unit_tests PRIVATE ${PROJECT_NAME})
+set(IMG_PATH "${CMAKE_CURRENT_LIST_DIR}/imgs/test.jpg")
+file(TO_NATIVE_PATH ${IMG_PATH} IMG_PATH)
+add_test(NAME unit_tests COMMAND unit_tests 1 ${IMG_PATH})

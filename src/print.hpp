@@ -92,11 +92,5 @@ void print_vector(const std::vector<double> &sumList)
 
         // 关闭文件流
         file.close();
-
-        std::cout << "数据已成功保存到文件中。" << std::endl;
-    }
-    else
-    {
-        std::cout << "无法打开文件。" << std::endl;
     }
 }

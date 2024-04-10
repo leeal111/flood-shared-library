@@ -10,6 +10,20 @@
 #ifndef _BIT_STIV_H_
 #define _BIT_STIV_H_
 
+#ifdef _WIN32
+
+#ifdef DLL_EXPORTS
+#define DLL_DECL_EXPORT __declspec(dllexport)
+#else
+#define DLL_DECL_EXPORT __declspec(dllimport)
+#endif
+
+#else
+
+#define DLL_DECL_EXPORT
+
+#endif
+
 #ifdef __cplusplus
 extern "C"
 {
@@ -34,5 +48,5 @@ extern "C"
 #ifdef __cplusplus
 }
 #endif
-
+#undef DLL_DECL_EXPORT
 #endif
