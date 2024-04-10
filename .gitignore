@@ -35,3 +35,5 @@ tests/lib/
 # 其他常见的忽略项
 .DS_Store
 Thumbs.db
+
+thirdparty/crosscompile
