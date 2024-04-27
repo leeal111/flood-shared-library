@@ -1,7 +1,7 @@
 /**
  * @file bitSTIV.h
  * @brief STIV算法C++头文件：包含了相关函数的接口
- * @version 0.1
+ * @version 0.2
  * @date 2024-04-09
  *
  * @copyright Copyright (c) 2024
