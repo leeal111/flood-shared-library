@@ -26,6 +26,7 @@ double calculateScore(const std::vector<double> &sumList, int range_len = 5)
     return total / std::accumulate(sumList.begin(), sumList.end(), 0.0);
 }
 
+// 求取竖直差
 cv::Mat std_filter(cv::Mat sti)
 {
     cv::Mat normalizedImage = sti.clone();
@@ -49,6 +50,7 @@ cv::Mat std_filter(cv::Mat sti)
     return normalizedImage;
 }
 
+// 转换特征到极坐标
 cv::Mat xycrd2polarcrd(cv::Mat img, double res = 45, double theta = 45, double precision = 1, int rangeV = 0, double rangedivR = 2, int zeroNum = 0)
 {
     int maxr = std::round(std::min(img.rows, img.cols) / rangedivR);
@@ -80,6 +82,7 @@ cv::Mat xycrd2polarcrd(cv::Mat img, double res = 45, double theta = 45, double p
     return dst;
 }
 
+// 过滤0频率值
 void lowFreqFilter(cv::Mat &image)
 {
     int center_x = image.cols / 2;
@@ -89,6 +92,7 @@ void lowFreqFilter(cv::Mat &image)
     image.row(center_y) = cv::Scalar(0, 0, 0);
 }
 
+// 傅里叶变换
 cv::Mat absFFTshift(cv::Mat image)
 {
     cv::Mat complexImage;
@@ -120,6 +124,7 @@ cv::Mat absFFTshift(cv::Mat image)
     return magnitude;
 }
 
+// 图像轴对称删除
 cv::Mat verticalDelete(cv::Mat image)
 {
     cv::Mat image_l, image_v, image_r, image_r_flip;
@@ -150,6 +155,7 @@ cv::Mat verticalDelete(cv::Mat image)
     return result;
 }
 
+// 图像值幂运算
 cv::Mat imgPow(cv::Mat image, double powNum = -1)
 {
     cv::Mat img_clr = verticalDelete(image);
@@ -166,6 +172,7 @@ cv::Mat imgPow(cv::Mat image, double powNum = -1)
     return image;
 }
 
+// Sobel算子
 cv::Mat partSobel(cv::Mat image)
 {
     cv::Mat img;
@@ -182,6 +189,7 @@ cv::Mat partSobel(cv::Mat image)
     return img;
 }
 
+// 裁剪图像中心区域
 cv::Mat imgCrop(cv::Mat image, int rangedivR = 10)
 {
     int h = image.rows;
@@ -208,6 +216,8 @@ cv::Mat imgCrop(cv::Mat image, int rangedivR = 10)
 
     return result;
 }
+
+// 简单检查参数
 void exam_args(int ifR2L, const char *path, double *score)
 {
     if (ifR2L != 0 && ifR2L != 1)
@@ -225,6 +235,7 @@ void exam_args(int ifR2L, const char *path, double *score)
 }
 double sti2angle_IFFT(int ifR2L, const char *path, double *score)
 {
+    // 读取图片、翻转图片并转换到灰度图
     exam_args(ifR2L, path, score);
     cv::Mat img = cv::imread(std::string(path));
     if (ifR2L)
@@ -236,18 +247,34 @@ double sti2angle_IFFT(int ifR2L, const char *path, double *score)
     }
     img.convertTo(img, CV_64FC1);
 
+    // 消除不同位置的竖直亮度差异。
     cv::Mat img_std = std_filter(img);
+
+    // 提取倾斜特征，使得fft的特征更明显，同时也是归一化
     cv::Mat img_clr = partSobel(img_std);
+
+    // 傅里叶变换
     cv::Mat img_fft = absFFTshift(img_clr);
-    lowFreqFilter(img_fft);
+    lowFreqFilter(img_fft); // 删除0频率值
+
+    // 过滤由于partSobel产生的噪声
     cv::Mat img_fft_clr = verticalDelete(img_fft);
+
+    // 幂运算
     cv::Mat img_fft_pow = imgPow(img_fft_clr, 2);
+
+    // 仅取中心部分
     cv::Mat img_fft_crop = imgCrop(img_fft_pow);
+
+    // 傅里叶变换并取幅值
     cv::Mat img_fe = absFFTshift(img_fft_crop);
     lowFreqFilter(img_fe);
+
+    // 更严格的取向判断
     cv::Mat img_fe_clr = verticalDelete(img_fe);
     cv::Mat img_fe_ = img_fe_clr;
 
+    // 后续流程根据特征图转换极坐标并求取最大值，与一阶段一致
     double res = 45;
     double theta = 45;
     double precision = 1;
@@ -259,6 +286,7 @@ double sti2angle_IFFT(int ifR2L, const char *path, double *score)
     cv::reduce(polar, sum_list, 1, cv::REDUCE_SUM);
     std::vector<double> sum_list_vec;
     sum_list.copyTo(sum_list_vec);
+    // 计算STI分数值
     *score = calculateScore(sum_list_vec);
     int maxIndex = 0; // 假设最大元素的序号为0
     for (int i = 1; i < sum_list_vec.size(); i++)
