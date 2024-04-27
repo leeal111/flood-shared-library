@@ -218,7 +218,7 @@ cv::Mat imgCrop(cv::Mat image, int rangedivR = 10)
 }
 
 // 简单检查参数
-void exam_args(int ifR2L, const char *path, double *score)
+void exam_args(int ifR2L, const char *path, double *score, const char *result_path)
 {
     if (ifR2L != 0 && ifR2L != 1)
     {
@@ -233,10 +233,11 @@ void exam_args(int ifR2L, const char *path, double *score)
         std::cout << "score should not be nullptr!" << std::endl;
     }
 }
-double sti2angle_IFFT(int ifR2L, const char *path, double *score)
+
+double sti2angle_IFFT(int ifR2L, const char *path, double *score, const char *result_path)
 {
     // 读取图片、翻转图片并转换到灰度图
-    exam_args(ifR2L, path, score);
+    exam_args(ifR2L, path, score, result_path);
     cv::Mat img = cv::imread(std::string(path));
     if (ifR2L)
         cv::flip(img, img, 1);
@@ -248,30 +249,30 @@ double sti2angle_IFFT(int ifR2L, const char *path, double *score)
     img.convertTo(img, CV_64FC1);
 
     // 消除不同位置的竖直亮度差异。
-    cv::Mat img_std = std_filter(img);
+    cv::Mat img_std = std_filter(img).clone();
 
     // 提取倾斜特征，使得fft的特征更明显，同时也是归一化
-    cv::Mat img_clr = partSobel(img_std);
+    cv::Mat img_clr = partSobel(img_std).clone();
 
     // 傅里叶变换
-    cv::Mat img_fft = absFFTshift(img_clr);
+    cv::Mat img_fft = absFFTshift(img_clr).clone();
     lowFreqFilter(img_fft); // 删除0频率值
 
     // 过滤由于partSobel产生的噪声
-    cv::Mat img_fft_clr = verticalDelete(img_fft);
+    cv::Mat img_fft_clr = verticalDelete(img_fft).clone();
 
     // 幂运算
-    cv::Mat img_fft_pow = imgPow(img_fft_clr, 2);
+    cv::Mat img_fft_pow = imgPow(img_fft_clr, 2).clone();
 
     // 仅取中心部分
-    cv::Mat img_fft_crop = imgCrop(img_fft_pow);
+    cv::Mat img_fft_crop = imgCrop(img_fft_pow).clone();
 
     // 傅里叶变换并取幅值
-    cv::Mat img_fe = absFFTshift(img_fft_crop);
+    cv::Mat img_fe = absFFTshift(img_fft_crop).clone();
     lowFreqFilter(img_fe);
 
     // 更严格的取向判断
-    cv::Mat img_fe_clr = verticalDelete(img_fe);
+    cv::Mat img_fe_clr = verticalDelete(img_fe.clone());
     cv::Mat img_fe_ = img_fe_clr;
 
     // 后续流程根据特征图转换极坐标并求取最大值，与一阶段一致
@@ -325,10 +326,24 @@ double sti2angle_IFFT(int ifR2L, const char *path, double *score)
     res = (res - theta) + (maxIndex * precision);
 
     double result = 90 - res;
-    if (res > 90)
+
+    if (result_path != nullptr)
     {
-        result = res - 90;
+        fs::create_directories(std::string(result_path));
+        print_img(img, join(result_path, "ORIGIN.jpg"));
+        print_img(img_std, join(result_path, "std.jpg"));
+        print_img(img_clr, join(result_path, "clr.jpg"));
+        print_img(img_fft, join(result_path, "fft.jpg"));
+        print_img(img_fft_clr, join(result_path, "fftclr.jpg"));
+        print_img(img_fft_crop, join(result_path, "fftcrop.jpg"));
+        print_img(img_fe, join(result_path, "ifft.jpg"));
+        print_img(img_fe_clr, join(result_path, "ifftclr.jpg"));
+        print_vector(sum_list_vec, join(result_path, "sumlist.txt"));
+        print_vector(sum_list_2_vec, join(result_path, "sumlist_2.txt"));
+        print_img(addRedLine(normalizeImg(img_fft), -(90 - result)), join(result_path, "FFTRES.jpg"));
+        print_img(addRedLine(normalizeImg(img_fe), result), join(result_path, "IFFTRES.jpg"));
     }
+
     return result;
 }
 
@@ -339,19 +354,24 @@ extern "C"
     double BIT_sti2angle_path(int ifR2L, const char *path)
     {
         double score;
-        return sti2angle_IFFT(ifR2L, path, &score);
+        return sti2angle_IFFT(ifR2L, path, &score, nullptr);
     }
 
     double BIT_sti2score_path(int ifR2L, const char *path)
     {
         double score;
-        sti2angle_IFFT(ifR2L, path, &score);
+        sti2angle_IFFT(ifR2L, path, &score, nullptr);
         return score;
     }
 
     double BIT_sti2angleWithscore_path(int ifR2L, const char *path, double *score)
     {
-        return sti2angle_IFFT(ifR2L, path, score);
+        return sti2angle_IFFT(ifR2L, path, score, nullptr);
+    }
+
+    double BIT_sti2angleWithscoreAndeval_path(int ifR2L, const char *path, double *score, const char *result_dir)
+    {
+        return sti2angle_IFFT(ifR2L, path, score, result_dir);
     }
 #ifdef __cplusplus
 }

@@ -9,4 +9,6 @@ int main(int argc, char **argv)
     printf("%lf\n", BIT_sti2score_path(i, argv[2]));
     double angle = BIT_sti2angleWithscore_path(i, argv[2], &score);
     printf("%lf %lf\n", angle, score);
+    angle = BIT_sti2angleWithscoreAndeval_path(i, argv[2], &score, "img_output");
+    printf("%lf %lf\n", angle, score);
 }
